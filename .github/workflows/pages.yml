@@ -18,6 +18,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check fields and monthly calculations
+        run: |
+          node --check app.js
+          node schema.test.cjs
       - uses: actions/configure-pages@v5
       - name: Prepare public web files only
         run: |
