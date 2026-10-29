@@ -1,0 +1,17 @@
+# Credentials stay outside source control.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+client_secret*.json
+credentials*.json
+service-account*.json
+*-service-account.json
+private/
+exports/
+receipts/
+node_modules/
+public/
