@@ -87,16 +87,25 @@ if(open){totals.open++;g.open++}
 return {month,range,totals,groups:[...groups.values()].sort((a,b)=>b.finished-a.finished||b.bought-a.bought||a.name.localeCompare(b.name,'th',{numeric:true}))};
 }
 function quantityCell(g,prefix){const count=g[prefix],missing=g[prefix==='bought'?'missingBought':'missingFinished'];const known=g[prefix+'Quantity'];return (count>0&&missing===count?'—':fmt(known))+(missing?'<small>ไม่ระบุ Quantity '+fmt(missing)+' รายการ</small>':'')}
+const monthlyColumns=[
+{label:'สินค้า',cell:g=>esc(g.name)},
+{label:'ขนาด / หน่วย',cell:g=>esc(g.weight!==''?fmt(g.weight)+(g.unit?' '+g.unit:' (ไม่ระบุหน่วย)'):(g.unit||'—'))},
+{label:'ซื้อ (Quantity)',numeric:true,cell:g=>quantityCell(g,'bought')},
+{label:'ยอดซื้อ (บาท)',numeric:true,cell:g=>money(g.amount)},
+{label:'ซื้อจนใช้หมดเฉลี่ย (วัน)',numeric:true,cell:g=>g.days.length?fmt(average(g.days)):'—'}
+];
+$('#monthlyHeaders').innerHTML=monthlyColumns.map(c=>'<th'+(c.numeric?' class="numeric"':'')+'>'+c.label+'</th>').join('');
 function renderMonthly(){
 const month=$('#summaryMonth').value,range=monthRange(month);
-if(!token||!range){$('#monthlyMessage').textContent=!token?'เข้าสู่ระบบเพื่อดูสรุปข้อมูลส่วนตัว':'กรุณาเลือกเดือนที่ต้องการดู';$('#monthlyCards').innerHTML='';$('#monthlyRows').innerHTML='<tr><td colspan="7" class="empty">'+(!token?'ยังไม่ได้เข้าสู่ระบบ':'ยังไม่ได้เลือกเดือน')+'</td></tr>';$('#monthlyHistory').innerHTML='';return}
+if(!token||!range){$('#monthlyMessage').textContent=!token?'เข้าสู่ระบบเพื่อดูสรุปข้อมูลส่วนตัว':'กรุณาเลือกเดือนที่ต้องการดู';$('#monthlyCards').innerHTML='';$('#monthlyRows').innerHTML='<tr><td colspan="'+monthlyColumns.length+'" class="empty">'+(!token?'ยังไม่ได้เข้าสู่ระบบ':'ยังไม่ได้เลือกเดือน')+'</td></tr>';$('#monthlyHistory').innerHTML='';return}
 const status=$('#summaryStatus').value,search=$('#monthlySearch').value.trim().toLocaleLowerCase('th-TH');
 const items=data.filter(x=>(!status||x.v[8]===status)&&(!search||String(x.v[3]).toLocaleLowerCase('th-TH').includes(search)));
 const model=summarizeMonth(items,month),t=model.totals;
 const statusLabel=status||'ทั้งหมด (รวมรอตรวจสอบ)';
 $('#monthlyMessage').textContent='เดือน '+month+' · สถานะ: '+statusLabel+' · '+(search?'ค้นหา: '+$('#monthlySearch').value+' · ':'')+'ไม่รวมตัวกรองวันที่ของแท็บรายการใบเสร็จ'+(t.missingQuantity?' · ยังไม่ระบุ Quantity '+t.missingQuantity+' รายการ':'')+(t.invalidDates?' · วันที่ไม่ถูกต้อง '+t.invalidDates+' รายการ ไม่นับเป็นการใช้หมด':'');
-$('#monthlyCards').innerHTML=[['ยอดซื้อในเดือน','฿'+money(t.amount)],['ซื้อในเดือน (รายการ)',fmt(t.bought)],['ใช้หมดในเดือน (รายการ)',fmt(t.finished)],['ยังไม่ใช้หมด ณ สิ้นเดือน (รายการ)',fmt(t.open)]].map(([label,value])=>'<div class="summary-card"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');
-$('#monthlyRows').innerHTML=model.groups.length?model.groups.map(g=>'<tr><td>'+esc(g.name)+'</td><td>'+esc(g.weight!==''?fmt(g.weight)+(g.unit?' '+g.unit:' (ไม่ระบุหน่วย)'):(g.unit||'—'))+'</td><td class="numeric">'+quantityCell(g,'bought')+'</td><td class="numeric">'+quantityCell(g,'finished')+'</td><td class="numeric">'+money(g.amount)+'</td><td class="numeric">'+(g.days.length?fmt(average(g.days)):'—')+'</td><td class="numeric">'+fmt(g.open)+'</td></tr>').join(''):'<tr><td colspan="7" class="empty">ไม่มีรายการซื้อ ใช้หมด หรือค้างใช้ตามตัวกรองนี้</td></tr>';
+$('#monthlyCards').innerHTML=[['ยอดซื้อในเดือน','฿'+money(t.amount)],['ซื้อในเดือน (รายการ)',fmt(t.bought)],['ใช้หมดในเดือน (รายการ)',fmt(t.finished)]].map(([label,value])=>'<div class="summary-card"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');
+const groups=model.groups.filter(g=>g.bought||g.finished);
+$('#monthlyRows').innerHTML=groups.length?groups.map(g=>'<tr>'+monthlyColumns.map(c=>'<td'+(c.numeric?' class="numeric"':'')+'>'+c.cell(g)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+monthlyColumns.length+'" class="empty">ไม่มีรายการซื้อหรือใช้หมดตามตัวกรองนี้</td></tr>';
 $('#monthlyHistory').innerHTML=Array.from({length:6},(_,i)=>{const m=shiftMonth(month,i-5),x=summarizeMonth(items,m).totals;return '<tr><td>'+esc(m)+'</td><td class="numeric">'+fmt(x.bought)+'</td><td class="numeric">'+fmt(x.finished)+'</td><td class="numeric">'+money(x.amount)+'</td><td class="numeric">'+(x.days.length?fmt(average(x.days)):'—')+'</td></tr>'}).join('');
 }
 function selectTab(name){const monthly=name==='monthly';$('#receiptsPanel').hidden=monthly;$('#monthlyPanel').hidden=!monthly;for(const id of ['receipts','monthly']){const active=id===name;$('#'+id+'Tab').setAttribute('aria-selected',String(active));$('#'+id+'Tab').tabIndex=active?0:-1}if(monthly)renderMonthly()}
