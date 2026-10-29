@@ -23,6 +23,7 @@ jobs:
           node-version: 22
       - name: Check fields and monthly calculations
         run: |
+          node security-check.cjs
           node --check app.js
           node schema.test.cjs
       - uses: actions/configure-pages@v5
