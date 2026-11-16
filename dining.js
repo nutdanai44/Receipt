@@ -16,7 +16,17 @@ const diningColumns=[
 ];
 function clearDining(){diningLoadSequence++;diningData=[];diningHeaders=[];diningSheetId=null;diningLoaded=false;diningEditing=null;$('#diningForm').reset();$('#diningForm').hidden=true;$('#diningError').textContent='';renderDining()}
 function diningFiltered(){const month=$('#diningMonth').value,status=$('#diningStatus').value,search=$('#diningSearch').value.trim().toLocaleLowerCase('th-TH');return diningData.filter(x=>(!month||(validDate(x.v[1])&&x.v[1].slice(0,7)===month))&&(!status||x.v[5]===status)&&(!search||String(x.v[2]).toLocaleLowerCase('th-TH').includes(search)))}
+function renderDiningTrend(){
+const el=$('#diningTrend');if(!token){el.textContent='เข้าสู่ระบบ Google เพื่อดูกราฟ';return}if(!diningLoaded){el.textContent='กำลังโหลดข้อมูล…';return}
+const now=currentBangkokMonth(),[year,month]=now.split('-').map(Number);
+const months=Array.from({length:6},(_,i)=>{const d=new Date(Date.UTC(year,month-1-(5-i),1));return d.toISOString().slice(0,7)});
+const groups=months.map(m=>{const rows=diningData.filter(x=>validDate(x.v[1])&&x.v[1].slice(0,7)===m);const known=rows.filter(x=>numberOrMissing(x.v[3])!==null);return {month:m,count:rows.length,known:known.length,total:known.reduce((sum,x)=>sum+Number(x.v[3]),0)}});
+if(!groups.some(g=>g.count)){el.textContent='ไม่มีข้อมูลค่าอาหารนอกบ้านในช่วง 6 เดือนย้อนหลัง';return}
+const max=Math.max(...groups.map(g=>g.total),1);
+el.innerHTML='<div class="dining-trend-bars" role="img" aria-label="ยอดค่าอาหารนอกบ้านรายเดือนย้อนหลัง 6 เดือน">'+groups.map(g=>'<div class="dining-trend-item"><div class="dining-trend-value">'+(g.known?'฿'+money(g.total):'<span class="dining-trend-empty">ไม่มีข้อมูล</span>')+'</div><div class="dining-trend-track"><div class="dining-trend-fill" style="height:'+(g.known?(g.total>0?Math.max(3,g.total/max*100):0):0)+'%"></div></div><div class="dining-trend-month">'+esc(g.month.slice(5))+'/'+esc(g.month.slice(2,4))+'</div></div>').join('')+'</div><p class="dining-trend-note">เดือนที่ไม่มีใบเสร็จจะแสดง “ไม่มีข้อมูล” ไม่ถือเป็นยอดใช้จ่าย 0 บาท'+(groups.some(g=>g.count>g.known)?' · รายการที่ไม่มียอดเงินถูกตัดออกจากยอดรวม':'')+'</p>';
+}
 function renderDining(){
+renderDiningTrend();
 $('#diningAdd').disabled=!token||!diningLoaded||diningBusy;
 $('#diningHeaders').innerHTML=diningColumns.map(c=>'<th'+(c.numeric?' class="numeric"':'')+(c.key===diningSort?' aria-sort="'+(diningDirection===1?'ascending':'descending')+'"':'')+'>'+(c.key===undefined?c.label:'<button type="button" data-dining-sort="'+c.key+'">'+c.label+(c.key===diningSort?(diningDirection===1?' ↑':' ↓'):' ↕')+'</button>')+'</th>').join('');
 if(!token){$('#diningMessage').textContent='เข้าสู่ระบบ Google เพื่อดูค่าอาหารนอกบ้าน';$('#diningCards').innerHTML='';$('#diningRows').innerHTML='<tr><td colspan="8" class="empty">ยังไม่ได้เข้าสู่ระบบ</td></tr>';return}
