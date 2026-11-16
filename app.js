@@ -2,7 +2,7 @@ const cfg=window.RECEIPT_CONFIG,$=s=>document.querySelector(s);let token='',data
 const fields=['รหัสใบเสร็จ','Purchased Date','ร้านค้า','Name','Weight','ราคาต่อกก.','Price','หมวดหมู่','สถานะ','Description','วันที่เพิ่มรายการ','Quantity','Unit','No.','วันที่ใช้หมด','หมายเหตุ'];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const root='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(cfg.spreadsheetId),tab="'"+cfg.sheetName.replaceAll("'","''")+"'";
-function auth(){const on=!!token;$('#login').hidden=on;$('#logout').hidden=!on;$('#sheetLink').hidden=!on;$('#refresh').disabled=!on||busy}
+function auth(){const on=!!token;$('#login').hidden=on;$('#logout').hidden=!on;$('#sheetLink').hidden=!on;$('#receiptSettings').hidden=!on;$('#refresh').disabled=!on||busy}
 function clear(){sessionStorage.removeItem('receipt.session');token='';data=[];clearTimeout(expiry);$('#editor').close();if(typeof clearDining==='function')clearDining();render();auth()}
 async function api(path,options={}){if(!token)throw Error('กรุณาเข้าสู่ระบบใหม่');const r=await fetch(root+path,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error?.message||'Google Sheets ไม่ตอบรับ');return j}
 const quantity=r=>r[11];
