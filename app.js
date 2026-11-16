@@ -1,5 +1,5 @@
 const cfg=window.RECEIPT_CONFIG,$=s=>document.querySelector(s);let token='',data=[],expiry,sheetId=null,busy=false,editing=null,sortCol=null,sortDir=0,headers=[],lastColumn='O';
-const fields=['รหัสใบเสร็จ','Purchased Date','ร้านค้า','Name','Weight','ราคาต่อกก.','Price','หมวดหมู่','สถานะ','Description','วันที่เพิ่มรายการ','Quantity','Unit','No.','วันที่ใช้หมด'];
+const fields=['รหัสใบเสร็จ','Purchased Date','ร้านค้า','Name','Weight','ราคาต่อกก.','Price','หมวดหมู่','สถานะ','Description','วันที่เพิ่มรายการ','Quantity','Unit','No.','วันที่ใช้หมด','หมายเหตุ'];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const root='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(cfg.spreadsheetId),tab="'"+cfg.sheetName.replaceAll("'","''")+"'";
 function auth(){const on=!!token;$('#login').hidden=on;$('#logout').hidden=!on;$('#refresh').disabled=!on||busy}
@@ -18,15 +18,17 @@ const columns=[
 {label:'Price',key:6,cell:x=>Number(x.v[6]||0).toLocaleString('th-TH',{minimumFractionDigits:2})},
 {label:'Purchased Date',key:1,cell:x=>plain(x.v,1)},
 {label:'วันที่ใช้หมด',key:14,cell:x=>plain(x.v,14)},
+{label:'หมายเหตุ',key:15,className:'note',cell:x=>plain(x.v,15)},
 {label:'จัดการ',className:'actions',cell:x=>'<button data-action="edit" data-row="'+x.row+'" aria-label="แก้ไข '+esc(x.v[3])+'" '+(busy?'disabled':'')+'>✎</button><button data-action="delete" data-row="'+x.row+'" class="danger" '+(busy?'disabled':'')+'>ลบ</button>'}
 ];
-const editOrder=[13,3,9,4,12,11,6,1,14,7,8,2,0,5,10];
+const editOrder=[13,3,9,4,12,11,6,1,14,15,7,8,2,0,5,10];
 const numericFields=[4,5,6,11,13];
 function editorFields(item){return editOrder.map(i=>{
 const f=fields[i],value=item.v[i];
 let control;
 if(i===8)control='<select name="c8">'+['รอตรวจสอบ','ยืนยันแล้ว'].map(v=>'<option '+(value===v?'selected':'')+'>'+v+'</option>').join('')+'</select>';
 else if(i===12){const units=[...new Set(['','กิโลกรัม','กรัม','ชิ้น','แพ็ก','ถุง','กล่อง','ขวด','ฟอง',String(value)])];control='<select name="c12">'+units.map(v=>'<option value="'+esc(v)+'" '+(value===v?'selected':'')+'>'+esc(v||'—')+'</option>').join('')+'</select>'}
+else if(i===15)control='<textarea name="c15" rows="3">'+esc(value)+'</textarea>';
 else control='<input name="c'+i+'" value="'+esc(value)+'" '+(numericFields.includes(i)?'type="number" step="any" min="0"':[1,14].includes(i)?'type="date"':'')+' '+(i===3?'required':'')+' '+([10,13].includes(i)?'readonly':'')+'>';
 return '<label>'+f+control+(i===14?'<small class="muted">เว้นว่างถ้ายังใช้ไม่หมด • ใช้ครบ Quantity ทั้งรายการแล้วจึงระบุวันที่</small>':'')+'</label>';
 }).join('')}
@@ -66,7 +68,7 @@ const money=n=>Number(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximum
 const average=values=>values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
 function summarizeMonth(items,month){
 const range=monthRange(month);if(!range)return null;
-const groups=new Map(),totals={bought:0,finished:0,open:0,amount:0,missingQuantity:0,invalidDates:0,days:[]};
+const groups=new Map(),totals={bought:0,boughtFinished:0,finished:0,open:0,amount:0,missingQuantity:0,invalidDates:0,days:[]};
 for(const item of items){
 const r=item.v,purchased=validDate(r[1])?r[1]:'',finished=validDate(r[14])?r[14]:'';
 const invalid=!!((r[1]&&!purchased)||(r[14]&&!finished)||(purchased&&finished&&finished<purchased));
@@ -80,7 +82,7 @@ const name=String(r[3]||'ไม่ระบุชื่อ').trim().replace(/\s+
 const key=JSON.stringify([name.toLocaleLowerCase('th-TH'),String(weight),unit]);
 if(!groups.has(key))groups.set(key,{name,weight,unit,bought:0,finished:0,open:0,boughtQuantity:0,finishedQuantity:0,missingBought:0,missingFinished:0,amount:0,days:[]});
 const g=groups.get(key),qty=numberOrMissing(r[11]);
-if(bought){totals.bought++;totals.amount+=numberOrMissing(r[6])??0;g.bought++;g.amount+=numberOrMissing(r[6])??0;if(qty===null){g.missingBought++;totals.missingQuantity++}else g.boughtQuantity+=qty}
+if(bought){if(usableFinished)totals.boughtFinished++;totals.bought++;totals.amount+=numberOrMissing(r[6])??0;g.bought++;g.amount+=numberOrMissing(r[6])??0;if(qty===null){g.missingBought++;totals.missingQuantity++}else g.boughtQuantity+=qty}
 if(done){totals.finished++;g.finished++;if(qty===null){g.missingFinished++;if(!bought)totals.missingQuantity++}else g.finishedQuantity+=qty;if(purchased){const days=(Date.parse(usableFinished+'T00:00:00Z')-Date.parse(purchased+'T00:00:00Z'))/86400000;g.days.push(days);totals.days.push(days)}}
 if(open){totals.open++;g.open++}
 }
@@ -103,7 +105,7 @@ const items=data.filter(x=>(!status||x.v[8]===status)&&(!search||String(x.v[3]).
 const model=summarizeMonth(items,month),t=model.totals;
 const statusLabel=status||'ทั้งหมด (รวมรอตรวจสอบ)';
 $('#monthlyMessage').textContent='เดือน '+month+' · สถานะ: '+statusLabel+' · '+(search?'ค้นหา: '+$('#monthlySearch').value+' · ':'')+'ไม่รวมตัวกรองวันที่ของแท็บรายการใบเสร็จ'+(t.missingQuantity?' · ยังไม่ระบุ Quantity '+t.missingQuantity+' รายการ':'')+(t.invalidDates?' · วันที่ไม่ถูกต้อง '+t.invalidDates+' รายการ ไม่นับเป็นการใช้หมด':'');
-$('#monthlyCards').innerHTML=[['ยอดซื้อในเดือน','฿'+money(t.amount)],['ซื้อในเดือน (รายการ)',fmt(t.bought)],['ใช้หมดในเดือน (รายการ)',fmt(t.finished)]].map(([label,value])=>'<div class="summary-card"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');
+$('#monthlyCards').innerHTML=[['ยอดซื้อในเดือน','฿'+money(t.amount)],['ซื้อในเดือน (รายการ)',fmt(t.bought)],['ใช้หมดแล้วจากที่ซื้อในเดือน (รายการ)',fmt(t.boughtFinished)]].map(([label,value])=>'<div class="summary-card"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');
 const groups=model.groups.filter(g=>g.bought||g.finished);
 $('#monthlyRows').innerHTML=groups.length?groups.map(g=>'<tr>'+monthlyColumns.map(c=>'<td'+(c.numeric?' class="numeric"':'')+'>'+c.cell(g)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+monthlyColumns.length+'" class="empty">ไม่มีรายการซื้อหรือใช้หมดตามตัวกรองนี้</td></tr>';
 $('#monthlyHistory').innerHTML=Array.from({length:6},(_,i)=>{const m=shiftMonth(month,i-5),x=summarizeMonth(items,m).totals;return '<tr><td>'+esc(m)+'</td><td class="numeric">'+fmt(x.bought)+'</td><td class="numeric">'+fmt(x.finished)+'</td><td class="numeric">'+money(x.amount)+'</td><td class="numeric">'+(x.days.length?fmt(average(x.days)):'—')+'</td></tr>'}).join('');
