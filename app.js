@@ -80,10 +80,10 @@ const open=!!purchased&&purchased<=range.end&&(!usableFinished||usableFinished>r
 if(!bought&&!done&&!open)continue;
 const name=String(r[3]||'ไม่ระบุชื่อ').trim().replace(/\s+/g,' '),weight=r[4]??'',unit=String(r[12]||'').trim();
 const key=JSON.stringify([name.toLocaleLowerCase('th-TH'),String(weight),unit]);
-if(!groups.has(key))groups.set(key,{name,weight,unit,bought:0,finished:0,open:0,boughtQuantity:0,finishedQuantity:0,missingBought:0,missingFinished:0,amount:0,days:[]});
+if(!groups.has(key))groups.set(key,{name,weight,unit,bought:0,finished:0,open:0,boughtQuantity:0,finishedQuantity:0,missingBought:0,missingFinished:0,amount:0,days:[],notes:[]});
 const g=groups.get(key),qty=numberOrMissing(r[11]);
-if(bought){if(usableFinished)totals.boughtFinished++;totals.bought++;totals.amount+=numberOrMissing(r[6])??0;g.bought++;g.amount+=numberOrMissing(r[6])??0;if(qty===null){g.missingBought++;totals.missingQuantity++}else g.boughtQuantity+=qty}
-if(done){totals.finished++;g.finished++;if(qty===null){g.missingFinished++;if(!bought)totals.missingQuantity++}else g.finishedQuantity+=qty;if(purchased){const days=(Date.parse(usableFinished+'T00:00:00Z')-Date.parse(purchased+'T00:00:00Z'))/86400000;g.days.push(days);totals.days.push(days)}}
+if(bought){const note=String(r[15]??'').trim();if(note&&!g.notes.includes(note))g.notes.push(note);if(usableFinished){totals.boughtFinished++;g.days.push((Date.parse(usableFinished+'T00:00:00Z')-Date.parse(purchased+'T00:00:00Z'))/86400000);}totals.bought++;totals.amount+=numberOrMissing(r[6])??0;g.bought++;g.amount+=numberOrMissing(r[6])??0;if(qty===null){g.missingBought++;totals.missingQuantity++}else g.boughtQuantity+=qty}
+if(done){totals.finished++;g.finished++;if(qty===null){g.missingFinished++;if(!bought)totals.missingQuantity++}else g.finishedQuantity+=qty;if(purchased){const days=(Date.parse(usableFinished+'T00:00:00Z')-Date.parse(purchased+'T00:00:00Z'))/86400000;totals.days.push(days)}}
 if(open){totals.open++;g.open++}
 }
 return {month,range,totals,groups:[...groups.values()].sort((a,b)=>b.finished-a.finished||b.bought-a.bought||a.name.localeCompare(b.name,'th',{numeric:true}))};
@@ -94,6 +94,7 @@ const monthlyColumns=[
 {label:'ขนาด / หน่วย',cell:g=>esc(g.weight!==''?fmt(g.weight)+(g.unit?' '+g.unit:' (ไม่ระบุหน่วย)'):(g.unit||'—'))},
 {label:'ซื้อ (Quantity)',numeric:true,cell:g=>quantityCell(g,'bought')},
 {label:'ยอดซื้อ (บาท)',numeric:true,cell:g=>money(g.amount)},
+{label:'หมายเหตุ',cell:g=>g.notes.length?g.notes.map(n=>'<div class="note">'+esc(n)+'</div>').join(''):'—'},
 {label:'ซื้อจนใช้หมดเฉลี่ย (วัน)',numeric:true,cell:g=>g.days.length?fmt(average(g.days)):'—'}
 ];
 $('#monthlyHeaders').innerHTML=monthlyColumns.map(c=>'<th'+(c.numeric?' class="numeric"':'')+'>'+c.label+'</th>').join('');
@@ -106,8 +107,8 @@ const model=summarizeMonth(items,month),t=model.totals;
 const statusLabel=status||'ทั้งหมด (รวมรอตรวจสอบ)';
 $('#monthlyMessage').textContent='เดือน '+month+' · สถานะ: '+statusLabel+' · '+(search?'ค้นหา: '+$('#monthlySearch').value+' · ':'')+'ไม่รวมตัวกรองวันที่ของแท็บรายการใบเสร็จ'+(t.missingQuantity?' · ยังไม่ระบุ Quantity '+t.missingQuantity+' รายการ':'')+(t.invalidDates?' · วันที่ไม่ถูกต้อง '+t.invalidDates+' รายการ ไม่นับเป็นการใช้หมด':'');
 $('#monthlyCards').innerHTML=[['ยอดซื้อในเดือน','฿'+money(t.amount)],['ซื้อในเดือน (รายการ)',fmt(t.bought)],['ใช้หมดแล้วจากที่ซื้อในเดือน (รายการ)',fmt(t.boughtFinished)]].map(([label,value])=>'<div class="summary-card"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');
-const groups=model.groups.filter(g=>g.bought||g.finished);
-$('#monthlyRows').innerHTML=groups.length?groups.map(g=>'<tr>'+monthlyColumns.map(c=>'<td'+(c.numeric?' class="numeric"':'')+'>'+c.cell(g)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+monthlyColumns.length+'" class="empty">ไม่มีรายการซื้อหรือใช้หมดตามตัวกรองนี้</td></tr>';
+const groups=model.groups.filter(g=>g.bought);
+$('#monthlyRows').innerHTML=groups.length?groups.map(g=>'<tr>'+monthlyColumns.map(c=>'<td'+(c.numeric?' class="numeric"':'')+'>'+c.cell(g)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+monthlyColumns.length+'" class="empty">ไม่มีรายการซื้อตามตัวกรองนี้</td></tr>';
 $('#monthlyHistory').innerHTML=Array.from({length:6},(_,i)=>{const m=shiftMonth(month,i-5),x=summarizeMonth(items,m).totals;return '<tr><td>'+esc(m)+'</td><td class="numeric">'+fmt(x.bought)+'</td><td class="numeric">'+fmt(x.finished)+'</td><td class="numeric">'+money(x.amount)+'</td><td class="numeric">'+(x.days.length?fmt(average(x.days)):'—')+'</td></tr>'}).join('');
 }
 function selectTab(name){const monthly=name==='monthly';$('#receiptsPanel').hidden=monthly;$('#monthlyPanel').hidden=!monthly;for(const id of ['receipts','monthly']){const active=id===name;$('#'+id+'Tab').setAttribute('aria-selected',String(active));$('#'+id+'Tab').tabIndex=active?0:-1}if(monthly)renderMonthly()}
