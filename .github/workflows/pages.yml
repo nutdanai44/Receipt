@@ -25,12 +25,14 @@ jobs:
         run: |
           node security-check.cjs
           node --check app.js
+          node --check dining.js
+          node dining.test.cjs
           node schema.test.cjs
       - uses: actions/configure-pages@v5
       - name: Prepare public web files only
         run: |
           mkdir public
-          cp index.html app.js config.js public/
+          cp index.html app.js dining.js config.js public/
           touch public/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
