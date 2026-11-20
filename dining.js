@@ -37,7 +37,7 @@ const restaurants=new Map();for(const x of valid){const name=String(x.v[2]||'ไ
 const ranking=[...restaurants].sort((a,b)=>b[1]-a[1]).slice(0,5);
 top.innerHTML=ranking.length?ranking.map(([name,amount],i)=>'<div class="dining-top-row"><span>'+esc(String(i+1)+'. '+name)+'</span><strong>฿'+money(amount)+'</strong></div>').join(''):'<p class="muted">ไม่มีข้อมูลร้านอาหารในช่วงที่เลือก</p>';
 }
-function renderDining(){
+function renderDining(){if(typeof renderDashboard==='function')renderDashboard();
 renderDiningTrend();
 $('#diningAdd').disabled=!token||!diningLoaded||diningBusy;
 $('#diningHeaders').innerHTML=diningColumns.map(c=>'<th'+(c.numeric?' class="numeric"':'')+(c.key===diningSort?' aria-sort="'+(diningDirection===1?'ascending':'descending')+'"':'')+'>'+(c.key===undefined?c.label:'<button type="button" data-dining-sort="'+c.key+'">'+c.label+(c.key===diningSort?(diningDirection===1?' ↑':' ↓'):' ↕')+'</button>')+'</th>').join('');
