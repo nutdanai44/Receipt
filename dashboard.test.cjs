@@ -25,7 +25,7 @@ run("selectTab('dashboard')");assert.equal(el('#dashboardPanel').hidden,false);a
 el('#dashboardDining').checked=false;run('renderDashboard()');assert(el('#dashboardCards').innerHTML.includes('400.00'));el('#dashboardDining').checked=true;
 run('diningLoaded=false;renderDashboard()');assert(el('#dashboardError').textContent.includes('อาหาร'));assert(el('#dashboardInsights').innerHTML.includes('รอข้อมูลครบ'));
 run('diningLoaded=true');el('#dashboardCompare').value='custom';el('#dashboardCompareStart').value='2025-01';el('#dashboardCompareEnd').value='2025-02';run('renderDashboard()');assert(el('#dashboardError').textContent.includes('จำนวนเดือนเท่ากับ'));
-el('#dashboardCompare').value='none';run('clear()');assert.equal(el('#dashboardCards').innerHTML,'');assert.equal(el('#dashboardChart').innerHTML,'');assert.equal(el('#dashboardRows').innerHTML,'');
+el('#dashboardCompare').value='none';run('clear()');assert.equal(el('#dashboardCards').innerHTML,'');assert(!el('#dashboardChart').innerHTML.includes('<svg'));assert(el('#dashboardChart').innerHTML.includes('เข้าสู่ระบบ Google'));assert.equal(el('#dashboardRows').innerHTML,'');
 const html=fs.readFileSync(__dirname+'/index.html','utf8');for(const key of Object.keys(elements).filter(x=>/^#[\w]+$/.test(x)))assert(html.includes('id="'+key.slice(1)+'"'),'Missing DOM '+key);
 assert(html.indexOf('id="dashboardTab"')<html.indexOf('id="receiptsTab"'));assert(html.indexOf('id="receiptsTab"')<html.indexOf('id="diningTab"'));assert(html.indexOf('id="diningTab"')<html.indexOf('id="grabTab"'));
 console.log('PASS: combined category/month totals, status and category filters, equal-duration/custom/YOY comparison, invalid range, zero/missing data, finite SVG, partial-load warning, menu order and logout');
